@@ -1,7 +1,5 @@
 {
   "name": "Copy of ASSINA PRO",
   "description": "PROJETO EM ANDAMENTO",
-  "requestFramePermissions": [
-    "microphone"
-  ]
+  "requestFramePermissions": []
 }

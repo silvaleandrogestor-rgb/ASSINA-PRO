@@ -1,6 +1,4 @@
 
-
-
 import React from 'react';
 import { NavLink } from 'react-router-dom';
 import { NAV_LINKS } from '../../constants';
@@ -9,8 +7,8 @@ const MobileNav: React.FC = () => {
   const linksToShow = [
     NAV_LINKS.find(l => l.label === 'Dashboard'),
     NAV_LINKS.find(l => l.label === 'Contratos'),
-    NAV_LINKS.find(l => l.label === 'Orçamentos'),
     NAV_LINKS.find(l => l.label === 'Assinaturas'),
+    NAV_LINKS.find(l => l.label === 'Configurações'),
     NAV_LINKS.find(l => l.label === 'Ver Site'),
   ].filter(Boolean) as (typeof NAV_LINKS[0])[];
 

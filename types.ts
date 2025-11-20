@@ -1,12 +1,12 @@
 
 export interface User {
   id: string;
-  fullName: string;
+  nome: string;
   email: string;
-  phone: string;
-  age?: number;
-  gender?: 'male' | 'female' | 'other';
-  discovery?: string;
+  telefone: string;
+  idade?: number;
+  sexo?: 'masculino' | 'feminino' | 'nao-informar';
+  profissao?: string;
 }
 
 export enum DocumentStatus {
@@ -46,7 +46,8 @@ export interface CompanyProfile {
   identificador: string; // CNPJ/CPF
   endereco: string;
   telefone: string;
-  assinatura_padrao?: string; // base64 image
+  assinatura_padrao?: string; // base64 image or 'logo'
+  tipo_assinatura?: 'draw' | 'type' | 'stamp';
 }
 
 export interface HistoryItem {

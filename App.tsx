@@ -1,6 +1,4 @@
 
-
-
 import React, { useState, useEffect } from 'react';
 import { HashRouter, Routes, Route, Navigate, useNavigate } from 'react-router-dom';
 import HomePage from './pages/HomePage';
@@ -54,7 +52,7 @@ const AppRoutes: React.FC = () => {
             localStorage.removeItem('plano_pendente');
             navigate('/planos'); 
         } else {
-            if (event !== 'INITIAL_SESSION') {
+            if (event === 'SIGNED_IN') { // Only navigate on explicit sign in, not initial session
                  navigate('/dashboard');
             }
         }

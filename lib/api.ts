@@ -1,52 +1,43 @@
+
 import { supabase } from './supabase';
-import { Contract, CompanyProfile, Quote, HistoryItem, CreditWallet, Subscription, User } from '../types';
+import { Contract, CompanyProfile, Quote, HistoryItem, CreditWallet, Subscription } from '../types';
 
 /*
  * ===================================================================================
  * ❗❗❗ AÇÃO OBRIGATÓRIA: SCRIPT DE CONFIGURAÇÃO DO BANCO DE DADOS ❗❗❗
  * ===================================================================================
  *
- * Os erros "Could not find the table..." que você está vendo acontecem porque
- * as tabelas do banco de dados AINDA NÃO FORAM CRIADAS no seu projeto Supabase.
+ * Os erros "Could not find the table..." ocorrem porque as tabelas e permissões
+ * necessárias ainda não existem no seu banco de dados Supabase.
  *
- * PARA RESOLVER TODOS OS ERROS DE UMA VEZ:
+ * PARA RESOLVER TUDO DE UMA VEZ, SIGA ESTES PASSOS:
  *
- * 1.  Vá para o seu projeto no site do Supabase (app.supabase.com).
- * 2.  No menu lateral esquerdo, clique em "SQL Editor" (ícone de um banco de dados com "SQL").
- * 3.  Clique no botão azul "+ New query".
- * 4.  Copie TODO o código SQL abaixo e cole no editor SQL.
- * 5.  Clique no botão verde "RUN" no canto inferior direito.
+ * 1.  Copie TODO o código SQL abaixo.
+ * 2.  Vá para o seu projeto no site do Supabase (app.supabase.com).
+ * 3.  No menu esquerdo, clique em "SQL Editor".
+ * 4.  Clique em "+ New query".
+ * 5.  Cole o script SQL que você copiou.
+ * 6.  Clique no botão verde "RUN".
  *
- * ===================================================================================
- * INÍCIO DO SCRIPT SQL (Copie tudo abaixo)
- * ===================================================================================
- *
--- 1. APAGA TABELAS ANTIGAS PARA UMA INSTALAÇÃO LIMPA (CUIDADO: ISSO DELETA TODOS OS DADOS)
-DROP TABLE IF EXISTS public.creditos_log;
-DROP TABLE IF EXISTS public.historico;
-DROP TABLE IF EXISTS public.orcamentos;
-DROP TABLE IF EXISTS public.contratos;
-DROP TABLE IF EXISTS public.assinaturas;
-DROP TABLE IF EXISTS public.carteira_creditos;
-DROP TABLE IF EXISTS public.perfis_empresa;
-DROP TABLE IF EXISTS public.usuarios_perfil;
+ * --- INÍCIO DO SCRIPT SQL ---
+ 
+DROP TABLE IF EXISTS public.creditos_log CASCADE;
+DROP TABLE IF EXISTS public.historico CASCADE;
+DROP TABLE IF EXISTS public.orcamentos CASCADE;
+DROP TABLE IF EXISTS public.contratos CASCADE;
+DROP TABLE IF EXISTS public.assinaturas CASCADE;
+DROP TABLE IF EXISTS public.carteira_creditos CASCADE;
+DROP TABLE IF EXISTS public.perfis_empresa CASCADE;
+DROP TABLE IF EXISTS public.usuarios_perfil CASCADE;
+DROP FUNCTION IF EXISTS public.adicionar_creditos(uuid, integer);
+DROP FUNCTION IF EXISTS public.get_user_status(uuid);
 
--- 2. CRIA AS TABELAS NOVAS
 CREATE TABLE public.usuarios_perfil (
   id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
   auth_id UUID REFERENCES auth.users(id) ON DELETE CASCADE UNIQUE,
-  nome TEXT,
-  email TEXT,
-  telefone TEXT,
-  idade TEXT,
-  sexo TEXT,
-  profissao TEXT,
-  data_criacao TIMESTAMPTZ DEFAULT now(),
-  ultimo_acesso TIMESTAMPTZ,
-  ip TEXT,
-  user_agent TEXT
+  nome TEXT, email TEXT, telefone TEXT, idade TEXT, sexo TEXT, profissao TEXT,
+  data_criacao TIMESTAMPTZ DEFAULT now(), ultimo_acesso TIMESTAMPTZ, ip TEXT, user_agent TEXT
 );
-
 CREATE TABLE public.carteira_creditos (
   id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
   user_id UUID REFERENCES auth.users(id) ON DELETE CASCADE UNIQUE,
@@ -54,70 +45,68 @@ CREATE TABLE public.carteira_creditos (
   trial_ativo BOOLEAN DEFAULT true NOT NULL,
   trial_usado BOOLEAN DEFAULT false NOT NULL
 );
-
 CREATE TABLE public.assinaturas (
   id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
   user_id UUID REFERENCES auth.users(id) ON DELETE CASCADE,
-  tipo_plano TEXT, -- 'mensal'
-  status TEXT, -- 'ativo', 'expirado'
-  data_inicio TIMESTAMPTZ,
-  data_fim TIMESTAMPTZ
+  tipo_plano TEXT, status TEXT, data_inicio TIMESTAMPTZ, data_fim TIMESTAMPTZ
 );
-
 CREATE TABLE public.contratos (
   id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
   user_id UUID REFERENCES auth.users(id) ON DELETE CASCADE,
-  titulo TEXT,
-  texto TEXT,
-  status TEXT DEFAULT 'draft',
-  assinatura_cliente TEXT,
-  criado_em TIMESTAMPTZ DEFAULT now(),
-  atualizado_em TIMESTAMPTZ DEFAULT now()
+  titulo TEXT, texto TEXT, status TEXT DEFAULT 'draft', assinatura_cliente TEXT,
+  criado_em TIMESTAMPTZ DEFAULT now(), atualizado_em TIMESTAMPTZ DEFAULT now()
 );
-
 CREATE TABLE public.creditos_log (
   id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
   user_id UUID REFERENCES auth.users(id) ON DELETE CASCADE,
-  tipo TEXT, -- 'debito' ou 'credito'
-  quantidade INTEGER,
-  descricao TEXT,
-  data TIMESTAMPTZ DEFAULT now()
+  tipo TEXT, quantidade INTEGER, descricao TEXT, data TIMESTAMPTZ DEFAULT now()
 );
-
 CREATE TABLE public.historico (
   id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
   contrato_id UUID REFERENCES public.contratos(id) ON DELETE SET NULL,
   user_id UUID REFERENCES auth.users(id) ON DELETE SET NULL,
-  acao TEXT,
-  valor TEXT,
-  data TIMESTAMPTZ DEFAULT now(),
-  ip TEXT,
-  user_agent TEXT
+  acao TEXT, valor TEXT, data TIMESTAMPTZ DEFAULT now(), ip TEXT, user_agent TEXT
 );
-
 CREATE TABLE public.perfis_empresa (
   id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
   user_id UUID REFERENCES auth.users(id) ON DELETE CASCADE UNIQUE,
-  nome_empresa TEXT,
-  logo_url TEXT,
-  identificador TEXT,
-  endereco TEXT,
-  telefone TEXT,
-  assinatura_padrao TEXT
+  nome_empresa TEXT, logo_url TEXT, identificador TEXT, endereco TEXT, telefone TEXT, assinatura_padrao TEXT, tipo_assinatura TEXT
 );
-
 CREATE TABLE public.orcamentos (
   id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
   user_id UUID REFERENCES auth.users(id) ON DELETE CASCADE,
-  nome_cliente TEXT,
-  produto_servico TEXT,
-  detalhes TEXT,
-  valor NUMERIC,
-  status TEXT DEFAULT 'sent',
-  criado_em TIMESTAMPTZ DEFAULT now()
+  nome_cliente TEXT, produto_servico TEXT, detalhes TEXT, valor NUMERIC, status TEXT DEFAULT 'sent', criado_em TIMESTAMPTZ DEFAULT now()
 );
 
--- 3. HABILITA RLS (ROW LEVEL SECURITY) EM TODAS AS TABELAS
+CREATE OR REPLACE FUNCTION public.adicionar_creditos(p_user_id UUID, p_quantidade INTEGER)
+RETURNS void AS $$
+BEGIN
+  UPDATE public.carteira_creditos
+  SET creditos = creditos + p_quantidade
+  WHERE user_id = p_user_id;
+
+  INSERT INTO public.creditos_log (user_id, tipo, quantidade, descricao)
+  VALUES (p_user_id, 'credito', p_quantidade, 'Créditos adicionados via PagSeguro');
+END;
+$$ LANGUAGE plpgsql;
+
+CREATE OR REPLACE FUNCTION public.get_user_status(p_user_id UUID)
+RETURNS json AS $$
+DECLARE
+    wallet_data json;
+    subscription_data json;
+BEGIN
+    SELECT row_to_json(c) INTO wallet_data FROM public.carteira_creditos c WHERE c.user_id = p_user_id;
+    SELECT row_to_json(a) INTO subscription_data FROM public.assinaturas a WHERE a.user_id = p_user_id AND a.status = 'ativo' LIMIT 1;
+    
+    RETURN json_build_object(
+        'wallet', wallet_data,
+        'subscription', subscription_data
+    );
+END;
+$$ LANGUAGE plpgsql SECURITY DEFINER;
+
+
 ALTER TABLE public.usuarios_perfil ENABLE ROW LEVEL SECURITY;
 ALTER TABLE public.carteira_creditos ENABLE ROW LEVEL SECURITY;
 ALTER TABLE public.assinaturas ENABLE ROW LEVEL SECURITY;
@@ -127,67 +116,30 @@ ALTER TABLE public.historico ENABLE ROW LEVEL SECURITY;
 ALTER TABLE public.perfis_empresa ENABLE ROW LEVEL SECURITY;
 ALTER TABLE public.orcamentos ENABLE ROW LEVEL SECURITY;
 
--- 4. CRIA AS POLÍTICAS DE ACESSO (PERMISSÕES)
 CREATE POLICY "Permitir acesso total para usuários autenticados" ON public.usuarios_perfil FOR ALL USING (auth.uid() = auth_id) WITH CHECK (auth.uid() = auth_id);
 CREATE POLICY "Permitir acesso total para usuários autenticados" ON public.carteira_creditos FOR ALL USING (auth.uid() = user_id) WITH CHECK (auth.uid() = user_id);
 CREATE POLICY "Permitir acesso total para usuários autenticados" ON public.assinaturas FOR ALL USING (auth.uid() = user_id) WITH CHECK (auth.uid() = user_id);
-CREATE POLICY "Permitir acesso de leitura pública em contratos" ON public.contratos FOR SELECT USING (true);
-CREATE POLICY "Permitir acesso de escrita para o dono do contrato" ON public.contratos FOR ALL USING (auth.uid() = user_id) WITH CHECK (auth.uid() = user_id);
+CREATE POLICY "Permitir leitura pública em contratos" ON public.contratos FOR SELECT USING (true);
+CREATE POLICY "Permitir escrita para o dono do contrato" ON public.contratos FOR ALL USING (auth.uid() = user_id) WITH CHECK (auth.uid() = user_id);
 CREATE POLICY "Permitir acesso total para usuários autenticados" ON public.creditos_log FOR ALL USING (auth.uid() = user_id) WITH CHECK (auth.uid() = user_id);
-CREATE POLICY "Permitir acesso de leitura para o dono do histórico" ON public.historico FOR SELECT USING (auth.uid() = user_id);
+CREATE POLICY "Permitir leitura para dono do histórico" ON public.historico FOR SELECT USING (auth.uid() = user_id);
 CREATE POLICY "Permitir inserção para usuários autenticados" ON public.historico FOR INSERT WITH CHECK (auth.uid() = user_id);
-CREATE POLICY "Permitir inserção anônima no histórico (para assinaturas)" ON public.historico FOR INSERT WITH CHECK (user_id IS NULL);
+CREATE POLICY "Permitir inserção anônima no histórico (assinaturas)" ON public.historico FOR INSERT WITH CHECK (user_id IS NULL);
 CREATE POLICY "Permitir acesso total para usuários autenticados" ON public.perfis_empresa FOR ALL USING (auth.uid() = user_id) WITH CHECK (auth.uid() = user_id);
 CREATE POLICY "Permitir acesso total para usuários autenticados" ON public.orcamentos FOR ALL USING (auth.uid() = user_id) WITH CHECK (auth.uid() = user_id);
-/*
- * ===================================================================================
- * FIM DO SCRIPT SQL PRINCIPAL
- * ===================================================================================
- *
- * ===================================================================================
- * ❗❗❗ AÇÃO OBRIGATÓRIA (PASSO 2): CRIAR STORAGE PARA LOGOS ❗❗❗
- * ===================================================================================
- * A funcionalidade de upload de logo precisa de um "Bucket" no Supabase Storage.
- *
- * 1.  No seu projeto Supabase, vá para "Storage" no menu lateral.
- * 2.  Clique em "+ New Bucket".
- * 3.  Nome do bucket: `logos`
- * 4.  Marque a opção "Public bucket".
- * 5.  Clique em "Create Bucket".
- *
- * Em seguida, vá para "SQL Editor" e execute o seguinte para garantir que
- * todos possam ler as imagens, mas apenas usuários logados possam enviar/modificar.
- *
--- POLÍTICAS DE ACESSO PARA O BUCKET 'logos'
-CREATE POLICY "Public Read Access" ON storage.objects FOR SELECT USING ( bucket_id = 'logos' );
-CREATE POLICY "Authenticated Insert" ON storage.objects FOR INSERT TO authenticated WITH CHECK ( bucket_id = 'logos' );
-CREATE POLICY "Authenticated Update" ON storage.objects FOR UPDATE TO authenticated USING ( bucket_id = 'logos' );
-CREATE POLICY "Authenticated Delete" ON storage.objects FOR DELETE TO authenticated USING ( bucket_id = 'logos' );
- * ===================================================================================
- * FIM DO GUIA DE STORAGE
+GRANT EXECUTE ON FUNCTION public.get_user_status(uuid) TO authenticated;
+
+-- --- FIM DO SCRIPT SQL ---
  * ===================================================================================
  */
 
-/**
- * Improved error logger for Supabase errors.
- * @param context A string describing where the error occurred.
- * @param error The Supabase error object.
- */
 function logSupabaseError(context: string, error: any) {
     if (!error) return;
     console.error(`--- Supabase Error in ${context} ---`);
-    console.error(`Message: ${error.message}`);
-    console.error(`Details: ${error.details}`);
-    console.error(`Hint: ${error.hint}`);
-    console.error("Full Error Object:", error);
+    console.error(JSON.stringify(error, null, 2));
     console.error("------------------------------------");
 }
 
-/**
- * ============================================================================
- * Authentication & Profile
- * ============================================================================
- */
 export async function registerUser(userData: { [key: string]: string }) {
     const { email, password, nome, ...profileData } = userData;
     const { data: authData, error: authError } = await supabase.auth.signUp({ 
@@ -224,8 +176,7 @@ export async function loginWithGoogle() {
 }
 
 export async function salvarPerfilUsuario(userId: string, profileData: { [key: string]: any }) {
-    // Remove confirmPassword before saving
-    const { confirmPassword, ...dataToSave } = profileData;
+    const { confirmEmail, confirmPassword, ...dataToSave } = profileData;
     const { data, error } = await supabase.from('usuarios_perfil').insert([{ 
         auth_id: userId, 
         user_agent: navigator.userAgent,
@@ -264,7 +215,6 @@ export async function salvarPerfilEmpresa(userId: string, profileData: Partial<C
     let logo_url = restOfProfile.logo_url;
 
     if (logoFile) {
-        // Upload new logo
         const filePath = `public/${userId}-${Date.now()}-${logoFile.name}`;
         const { error: uploadError } = await supabase.storage.from('logos').upload(filePath, logoFile, {
             cacheControl: '3600',
@@ -276,12 +226,10 @@ export async function salvarPerfilEmpresa(userId: string, profileData: Partial<C
             return { data: null, error: uploadError };
         }
 
-        // Get public URL of the uploaded logo
         const { data: urlData } = supabase.storage.from('logos').getPublicUrl(filePath);
         logo_url = urlData.publicUrl;
     }
     
-    // Save profile data (with new logo_url if uploaded)
     const { data, error } = await supabase
         .from('perfis_empresa')
         .upsert({ ...restOfProfile, user_id: userId, logo_url: logo_url }, { onConflict: 'user_id' })
@@ -298,11 +246,6 @@ export async function getUserProfile(userId: string) {
     return { data: data as { nome: string } | null, error };
 }
 
-/**
- * ============================================================================
- * Wallet, Subscription & Permissions
- * ============================================================================
- */
 export async function criarCarteiraInicial(userId: string) {
     const { data, error } = await supabase.from('carteira_creditos').insert([{ user_id: userId, creditos: 0, trial_ativo: true, trial_usado: false }]);
     if (error) logSupabaseError('criarCarteiraInicial', error);
@@ -359,11 +302,6 @@ export async function usarTrial(userId: string) {
     return { data, error };
 }
 
-/**
- * ============================================================================
- * Checkout PagSeguro
- * ============================================================================
- */
 export async function iniciarCheckoutPagSeguro(tipo: 'mensal' | 'creditos', valor: number, descricao: string) {
     const { data: { user } } = await supabase.auth.getUser();
     if (!user) {
@@ -373,13 +311,12 @@ export async function iniciarCheckoutPagSeguro(tipo: 'mensal' | 'creditos', valo
     
     try {
         const { data, error } = await supabase.functions.invoke('iniciar-checkout-pagseguro', {
-            body: JSON.stringify({
-                tipo,
+            body: {
                 valor,
                 descricao,
                 customer: { name: user.user_metadata?.full_name || "Cliente AssinaPro", email: user.email },
                 userId: user.id
-            })
+            }
         });
 
         if (error) throw error;
@@ -387,20 +324,15 @@ export async function iniciarCheckoutPagSeguro(tipo: 'mensal' | 'creditos', valo
         if (data.checkoutUrl) {
             window.location.href = data.checkoutUrl;
         } else {
-            logSupabaseError("iniciarCheckoutPagSeguro (response)", data);
-            alert("Não foi possível iniciar o checkout. Verifique se a Edge Function 'iniciar-checkout-pagseguro' foi implantada (deployed) corretamente no seu projeto Supabase.");
+            console.error("Resposta da Edge Function sem checkoutUrl:", data);
+            alert("Não foi possível iniciar o checkout. Verifique o console da Edge Function para mais detalhes.");
         }
     } catch (error: any) {
-        logSupabaseError("iniciarCheckoutPagSeguro (fetch)", error);
-        alert("Falha ao iniciar o checkout. Verifique se a Edge Function 'iniciar-checkout-pagseguro' foi criada e implantada (deployed) no seu projeto Supabase. (Erro: Failed to fetch)");
+        logSupabaseError("iniciarCheckoutPagSeguro (invoke)", error);
+        alert("Falha ao se comunicar com o servidor de checkout. Verifique se a Edge Function 'iniciar-checkout-pagseguro' foi implantada (deployed) corretamente no seu projeto Supabase.");
     }
 }
 
-/**
- * ============================================================================
- * History & Logs
- * ============================================================================
- */
 export async function registrarHistorico(userId: string | null, contractId: string | null, action: string, value: string | null) {
   const { data, error } = await supabase.from('historico').insert([{ user_id: userId, contrato_id: contractId, acao: action, valor: value, user_agent: navigator.userAgent }]);
   if (error) logSupabaseError('registrarHistorico', error);
@@ -421,22 +353,29 @@ export async function getRecentHistory(userId: string): Promise<{ data: HistoryI
       acao,
       valor,
       data,
-      contrato:contratos(titulo)
+      contratos(titulo)
     `)
     .eq('user_id', userId)
     .order('data', { ascending: false })
     .limit(5);
 
   if (error) logSupabaseError('getRecentHistory', error);
+  
+  if (data) {
+    // FIX: Map the 'contratos' property from the join to 'contrato' to match the HistoryItem type.
+    const transformedData = data.map((item: any) => {
+      const { contratos, ...rest } = item;
+      return {
+        ...rest,
+        contrato: Array.isArray(contratos) ? contratos[0] || null : contratos,
+      };
+    });
+    return { data: transformedData, error };
+  }
+  
   return { data, error };
 }
 
-
-/**
- * ============================================================================
- * Quotes (Orcamentos)
- * ============================================================================
- */
 export async function criarOrcamento(userId: string, quoteData: Partial<Quote>) {
   const { nome_cliente, produto_servico, detalhes, valor } = quoteData;
   const { data, error } = await supabase
@@ -475,11 +414,6 @@ export async function getOrcamentosEnviadosCount(userId: string) {
   return { count, error };
 }
 
-/**
- * ============================================================================
- * Contracts
- * ============================================================================
- */
 export async function getContratosPorStatus(userId: string, status: string) {
   const { count, error } = await supabase
     .from('contratos')
@@ -514,12 +448,7 @@ export async function salvarAssinatura(contractId: string, signature: string) {
     return { data, error };
 }
 
-/**
- * ============================================================================
- * Notifications (from History)
- * ============================================================================
- */
-export async function getNotifications(userId: string) {
+export async function getNotifications(userId: string): Promise<{ data: HistoryItem[] | null; error: any }> {
     const { data, error } = await supabase
     .from('historico')
     .select(`
@@ -527,12 +456,25 @@ export async function getNotifications(userId: string) {
       acao,
       valor,
       data,
-      contrato:contratos(titulo)
+      contratos(titulo)
     `)
     .eq('user_id', userId)
     .order('data', { ascending: false })
     .limit(10);
 
   if (error) logSupabaseError('getNotifications', error);
-  return { data: data as HistoryItem[] | null, error };
+
+  if (data) {
+    // FIX: Map the 'contratos' property from the join to 'contrato' to match the HistoryItem type.
+    const transformedData = data.map((item: any) => {
+        const { contratos, ...rest } = item;
+        return {
+          ...rest,
+          contrato: Array.isArray(contratos) ? contratos[0] || null : contratos,
+        };
+      });
+    return { data: transformedData, error };
+  }
+
+  return { data, error };
 }

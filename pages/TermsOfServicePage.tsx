@@ -34,7 +34,7 @@ const TermsOfServicePage: React.FC = () => {
 
                         <h2>4. Planos e Pagamentos</h2>
                         <p>
-                            Oferecemos planos de assinatura mensais e serviços avulsos. Os pagamentos são devidos no início de cada ciclo de faturamento. As taxas são não reembolsáveis, exceto quando exigido por lei.
+                            Oferecemos planos de assinatura mensais e serviços avulsos (créditos). Os pagamentos são processados por gateways de pagamento terceirizados. Ao realizar uma compra, você concorda com os termos de serviço do respectivo gateway. As taxas são não reembolsáveis, exceto quando exigido por lei.
                         </p>
 
                         <h2>5. Uso Aceitável</h2>

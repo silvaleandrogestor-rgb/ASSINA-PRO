@@ -144,7 +144,7 @@ const DashboardPage: React.FC = () => {
                     <PlusCircle size={18} className="mr-2"/>
                     Gerar Orçamento
                 </Button>
-                 <Button variant="outline" onClick={() => navigate('/contratos')}>
+                 <Button variant="outline" onClick={() => navigate('/assinaturas')}>
                     <FileSignature size={18} className="mr-2"/>
                     Gerar Assinatura
                 </Button>
@@ -155,7 +155,10 @@ const DashboardPage: React.FC = () => {
         {metrics.map(metric => (
           <MetricCard
             key={metric.title}
-            {...metric}
+            title={metric.title}
+            value={metric.value}
+            icon={metric.icon}
+            color={metric.color}
           />
         ))}
       </div>

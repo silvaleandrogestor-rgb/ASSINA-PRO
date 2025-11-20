@@ -1,14 +1,13 @@
+
 import React, { useState, useRef, useEffect } from 'react';
 import { useLocation, useNavigate } from 'react-router-dom';
 import Header from '../components/layout/Header';
 import Button from '../components/ui/Button';
 import Input from '../components/ui/Input';
 import Logo from '../components/ui/Logo';
-import { DISCOVERY_OPTIONS } from '../constants';
 import { ChevronDown, Bot, ShieldCheck, Send, DollarSign, Star, CheckCircle, AlertCircle } from 'lucide-react';
 import Footer from '../components/layout/Footer';
 import { registerUser, loginWithGoogle } from '../lib/api';
-// FIX: Import supabase client
 import { supabase } from '../lib/supabase';
 
 const faqData = [
@@ -94,7 +93,7 @@ const plans = [
     buttonText: 'Começar Agora',
     type: 'creditos',
     value: 39.90,
-    desc: 'Compra de 5 créditos'
+    desc: 'Compra de 5 Créditos Avulsos AssinaPro'
   },
   {
     id: 'mensal',
@@ -179,14 +178,18 @@ const HomePage: React.FC = () => {
     const formData = new FormData(form);
     const data = Object.fromEntries(formData.entries()) as { [key: string]: string };
 
+    if (data.email !== data.confirmEmail) {
+      setFormMessage({ type: 'error', text: 'Os e-mails não coincidem.' });
+      setIsSubmitting(false);
+      return;
+    }
+    
     if (data.password !== data.confirmPassword) {
       setFormMessage({ type: 'error', text: 'As senhas não coincidem.' });
       setIsSubmitting(false);
       return;
     }
-    
-    // On successful registration, onAuthStateChange in App.tsx will handle
-    // profile/wallet creation and redirect the user.
+
     const { error } = await registerUser(data);
 
     if (error) {
@@ -316,7 +319,7 @@ const HomePage: React.FC = () => {
                                     <h3 className={`text-2xl font-bold font-poppins text-white`}>{plan.name}</h3>
                                     <p className={`mt-2 text-sm ${isPopular ? 'text-green-100' : 'text-blue-200'}`}>{plan.description}</p>
                                     <div className="my-8">
-                                        <span className={`text-5xl font-extrabold text-white`}>{`R$${plan.price}`}</span>
+                                        <span className={`text-5xl font-extrabold text-white drop-shadow-md filter [text-shadow:_0_2px_4px_rgba(30,58,138,0.5)]`}>{`R$${plan.price}`}</span>
                                         <span className={`text-lg ml-1 ${isPopular ? 'text-green-100' : 'text-blue-200'}`}>/{plan.frequency}</span>
                                     </div>
                                     <ul className="space-y-4 text-left">
@@ -331,7 +334,8 @@ const HomePage: React.FC = () => {
                                 <Button 
                                     onClick={() => handlePlanClick(plan as any)}
                                     size="lg" 
-                                    className={`w-full mt-8 font-bold shadow-lg transition-transform duration-200 hover:-translate-y-1 ${isPopular ? 'bg-brand-blue text-white' : 'border border-white text-white bg-transparent hover:bg-white/20'}`}
+                                    variant={isPopular ? 'secondary' : 'outline'}
+                                    className={`w-full mt-8 font-bold shadow-lg transition-transform duration-200 hover:-translate-y-1 ${!isPopular && 'border-white text-white bg-transparent hover:bg-white/20'}`}
                                 >
                                     {plan.buttonText}
                                 </Button>
@@ -358,17 +362,19 @@ const HomePage: React.FC = () => {
                         <p className="text-sm font-medium">{formMessage.text}</p>
                       </div>
                     )}
-                    <Input name="fullName" label="Nome completo" placeholder="Seu nome completo" required />
+                    <Input name="nome" label="Nome completo" placeholder="Seu nome completo" required />
                     <Input name="profissao" label="Profissão" placeholder="Sua profissão" required />
                     <Input name="telefone" label="Telefone WhatsApp" placeholder="(00) 00000-0000" type="tel" required/>
                     <Input name="email" label="E-mail" placeholder="seuemail@exemplo.com" type="email" required/>
-                    <Input name="confirmPassword" label="Confirmar E-mail" placeholder="Confirme seu e-mail" type="email" required/>
+                    <Input name="confirmEmail" label="Confirmar E-mail" placeholder="Confirme seu e-mail" type="email" required/>
                     <Input name="password" label="Crie sua senha" placeholder="Mínimo 8 caracteres" type="password" minLength={8} required/>
+                    <Input name="confirmPassword" label="Confirmar Senha" placeholder="Confirme sua senha" type="password" minLength={8} required/>
+
                     <div className="grid grid-cols-2 gap-4">
                       <Input name="idade" label="Idade" placeholder="Sua idade" type="number" required />
                       <div>
                         <label htmlFor="sexo" className="block text-sm font-medium text-gray-700 mb-1">Sexo</label>
-                        <select id="sexo" name="sexo" className="w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-2 focus:ring-brand-blue text-soft-black" defaultValue="">
+                        <select id="sexo" name="sexo" className="w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-2 focus:ring-brand-blue text-soft-black" defaultValue="" required>
                           <option value="" disabled>Selecione...</option>
                           <option value="masculino">Masculino</option>
                           <option value="feminino">Feminino</option>
