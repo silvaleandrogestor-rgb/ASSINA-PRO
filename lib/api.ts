@@ -20,7 +20,7 @@ import { Contract, CompanyProfile, Quote, HistoryItem, CreditWallet, Subscriptio
  * ===================================================================================
  * INÍCIO DO SCRIPT SQL (Copie tudo abaixo)
  * ===================================================================================
- */
+ *
 -- 1. APAGA TABELAS ANTIGAS PARA UMA INSTALAÇÃO LIMPA (CUIDADO: ISSO DELETA TODOS OS DADOS)
 DROP TABLE IF EXISTS public.creditos_log;
 DROP TABLE IF EXISTS public.historico;
