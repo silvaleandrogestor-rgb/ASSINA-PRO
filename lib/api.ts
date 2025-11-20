@@ -311,55 +311,7 @@ export async function iniciarCheckoutPagSeguro(tipo: 'mensal' | 'creditos', valo
   valor: number,
   descricao: string
 ) {
-  const {
-    data: { user },
-    error: authError,
-  } = await supabase.auth.getUser();
-
-  if (authError || !user) {
-    alert("Erro: usuário não autenticado para iniciar o checkout.");
-    return;
-  }
-
-  try {
-    const { data, error } = await supabase.functions.invoke('iniciar-checkout-pagseguro', {
-      body: {
-        valor,
-        descricao,
-        tipo,
-        customer: {
-          name: user.user_metadata?.full_name || "Cliente AssinaPro",
-          email: user.email,
-        },
-        userId: user.id,
-      },
-    });
-
-    if (error) {
-      console.error("Erro retornado pela Edge Function:", error);
-      alert("Não foi possível iniciar o checkout. Verifique a Edge Function.");
-      return;
-    }
-
-    if (!data || !data.checkoutUrl) {
-      console.error("Resposta inesperada:", data);
-      alert("Erro: a Edge Function não retornou uma checkoutUrl válida.");
-      return;
-    }
-
-    window.location.href = data.checkoutUrl;
-
-  } catch (err) {
-    console.error("Erro ao chamar iniciarCheckoutPagSeguro:", err);
-    alert("Falha ao enviar requisição ao servidor do checkout.");
-  }
-}
-
-    const { data, error } = await supabase.from('creditos_log').insert([{ user_id: userId, tipo: type, quantidade: quantity, descricao: description }]);
-    if (error) logSupabaseError('registrarCreditoLog', error);
-    return { data, error };
-}
-
+ 
 export async function getRecentHistory(userId: string): Promise<{ data: HistoryItem[] | null, error: any }> {
   const { data, error } = await supabase
     .from('historico')
