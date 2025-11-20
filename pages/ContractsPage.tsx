@@ -3,7 +3,7 @@ import Button from '../components/ui/Button';
 import Card from '../components/ui/Card';
 import { Plus, Bot, BrainCircuit } from 'lucide-react';
 import { supabase } from '../lib/supabase';
-import { criarContrato, listarContratos, registrarHistorico } from '../lib/api';
+import { criarContrato, listarContratos, registrarHistorico, getPerfilEmpresa } from '../lib/api';
 import { Contract } from '../types';
 import { GoogleGenAI } from '@google/genai';
 import { useAppContext } from '../contexts/AppContext';
@@ -77,9 +77,25 @@ const ContractsPage: React.FC = () => {
         if (!prompt || !ai) return;
         setIsLoading(true);
         setGeneratedContract('');
-        const modelName = useAdvancedModel ? 'gemini-3-pro-preview' : 'gemini-2.5-flash';
+        
         try {
-            const response = await ai.models.generateContent({ model: modelName, contents: `Gere um contrato para: ${prompt}` });
+            const { data: { user } } = await supabase.auth.getUser();
+            if (!user) throw new Error("Usuário não encontrado.");
+            
+            const { data: companyProfile } = await getPerfilEmpresa(user.id);
+
+            let fullPrompt = `Gere um contrato profissional para a seguinte necessidade: "${prompt}".`;
+            if (companyProfile) {
+                fullPrompt += `\n\nOs dados da empresa contratante devem ser incluídos no cabeçalho ou na seção de partes do contrato. Os dados são:\n`
+                fullPrompt += `- Nome da Empresa: ${companyProfile.nome_empresa || 'Não informado'}\n`;
+                fullPrompt += `- CNPJ/CPF: ${companyProfile.identificador || 'Não informado'}\n`;
+                fullPrompt += `- Endereço: ${companyProfile.endereco || 'Não informado'}\n`;
+                fullPrompt += `- Telefone: ${companyProfile.telefone || 'Não informado'}\n`;
+            }
+            fullPrompt += `\nO contrato deve ser completo, formal e juridicamente sólido.`;
+
+            const modelName = useAdvancedModel ? 'gemini-3-pro-preview' : 'gemini-2.5-flash';
+            const response = await ai.models.generateContent({ model: modelName, contents: fullPrompt });
             if (response.text) setGeneratedContract(response.text);
             else setGeneratedContract("Não foi possível gerar o contrato.");
         } catch (error) {

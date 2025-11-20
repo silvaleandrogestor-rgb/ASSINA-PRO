@@ -1,13 +1,12 @@
 
 
+
 import React, { useState, useEffect } from 'react';
 import { HashRouter, Routes, Route, Navigate, useNavigate } from 'react-router-dom';
 import HomePage from './pages/HomePage';
 import DashboardPage from './pages/DashboardPage';
 import ContractsPage from './pages/ContractsPage';
 import QuotesPage from './pages/QuotesPage';
-import ImageEditorPage from './pages/ImageEditorPage';
-import TranscriptionPage from './pages/TranscriptionPage';
 import SettingsPage from './pages/SettingsPage';
 import PublicSignaturePage from './pages/PublicSignaturePage';
 import AppLayout from './components/layout/AppLayout';
@@ -17,9 +16,10 @@ import LoginPage from './pages/LoginPage';
 import ResetPasswordPage from './pages/ResetPasswordPage';
 import { supabase } from './lib/supabase';
 import { Session } from '@supabase/supabase-js';
-import { salvarPerfilUsuario, atualizarUltimoAcesso, checkUserProfileExists, getCreditWallet, getAssinaturaAtiva, criarCarteiraInicial, iniciarCheckoutPagSeguro } from './lib/api';
+import { salvarPerfilUsuario, atualizarUltimoAcesso, checkUserProfileExists, getCreditWallet, getAssinaturaAtiva, criarCarteiraInicial } from './lib/api';
 import { AppProvider, useAppContext } from './contexts/AppContext';
 import PlansPage from './pages/PlansPage';
+import AssinaturasPage from './pages/AssinaturasPage';
 
 const AppRoutes: React.FC = () => {
   const [session, setSession] = useState<Session | null>(null);
@@ -30,9 +30,8 @@ const AppRoutes: React.FC = () => {
   useEffect(() => {
     const handleAuthChange = async (event: string, session: Session | null) => {
       setSession(session);
-      setLoading(true); // Start loading on any auth change
+      setLoading(true); 
 
-      // Fix: Handle session on both SIGNED_IN and INITIAL_SESSION events
       if ((event === 'SIGNED_IN' || event === 'INITIAL_SESSION') && session?.user) {
         const user = session.user;
         const profileExists = await checkUserProfileExists(user.id);
@@ -53,12 +52,8 @@ const AppRoutes: React.FC = () => {
         const pendingPlanJSON = localStorage.getItem('plano_pendente');
         if (pendingPlanJSON) {
             localStorage.removeItem('plano_pendente');
-            const pendingPlan = JSON.parse(pendingPlanJSON);
-            navigate('/planos'); // Redirect to checkout page to confirm
+            navigate('/planos'); 
         } else {
-             // On manual login or session restore, go to dashboard
-            // FIX: The error on this line is resolved by the parent if-condition change.
-            // This condition now correctly prevents navigation on initial session load.
             if (event !== 'INITIAL_SESSION') {
                  navigate('/dashboard');
             }
@@ -72,10 +67,6 @@ const AppRoutes: React.FC = () => {
       setLoading(false);
     };
     
-    // NOTE: Removed explicit getSession() call. 
-    // onAuthStateChange handles the 'INITIAL_SESSION' event automatically upon initialization,
-    // which simplifies the logic and prevents potential race conditions.
-
     const { data: { subscription } } = supabase.auth.onAuthStateChange((_event, session) => {
         handleAuthChange(_event, session);
     });
@@ -101,8 +92,7 @@ const AppRoutes: React.FC = () => {
               <Route path="dashboard" element={<DashboardPage />} />
               <Route path="contratos" element={<ContractsPage />} />
               <Route path="orcamentos" element={<QuotesPage />} />
-              <Route path="editor-imagem" element={<ImageEditorPage />} />
-              <Route path="transcricao" element={<TranscriptionPage />} />
+              <Route path="assinaturas" element={<AssinaturasPage />} />
               <Route path="configuracoes" element={<SettingsPage />} />
               <Route path="*" element={<Navigate to="/dashboard" />} />
             </Route>

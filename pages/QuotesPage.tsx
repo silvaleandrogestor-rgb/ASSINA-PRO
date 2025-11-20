@@ -4,7 +4,7 @@ import Card from '../components/ui/Card';
 import Input from '../components/ui/Input';
 import { Plus, Bot } from 'lucide-react';
 import { supabase } from '../lib/supabase';
-import { criarOrcamento, listarOrcamentos, registrarHistorico } from '../lib/api';
+import { criarOrcamento, listarOrcamentos, registrarHistorico, getPerfilEmpresa } from '../lib/api';
 import { Quote } from '../types';
 import { GoogleGenAI } from '@google/genai';
 import { useAppContext } from '../contexts/AppContext';
@@ -42,25 +42,32 @@ const QuoteModal = ({
         }
         setIsLoading(true);
         let result = { error: null };
-        const prompt = `Crie uma descrição detalhada e profissional para um orçamento com as seguintes informações: Cliente: ${formData.nome_cliente}, Produto/Serviço: ${formData.produto_servico}, Prazos: ${formData.prazos}, Valor: R$ ${formData.valor}.`;
         try {
+            const { data: { user } } = await supabase.auth.getUser();
+            if (!user) throw new Error("Usuário não encontrado.");
+
+            const { data: companyProfile } = await getPerfilEmpresa(user.id);
+            
+            let prompt = `Crie uma descrição detalhada e profissional para um orçamento com as seguintes informações: Cliente: ${formData.nome_cliente}, Produto/Serviço: ${formData.produto_servico}, Prazos: ${formData.prazos}, Valor: R$ ${formData.valor}.`;
+            if (companyProfile?.nome_empresa) {
+                prompt += ` O orçamento está sendo emitido pela empresa: "${companyProfile.nome_empresa}". Mencione o nome da empresa de forma profissional no texto.`;
+            }
+
             const response = await ai.models.generateContent({ model: 'gemini-2.5-flash', contents: prompt });
             if (!response.text) throw new Error("A IA não retornou uma descrição.");
             
-            const { data: { user } } = await supabase.auth.getUser();
-            if (user) {
-                const { error } = await criarOrcamento(user.id, {
-                    nome_cliente: formData.nome_cliente,
-                    produto_servico: formData.produto_servico,
-                    detalhes: response.text,
-                    valor: formData.valor,
-                });
-                if(error) throw error;
-                await registrarHistorico(user.id, null, 'criou_orcamento', `Cliente: ${formData.nome_cliente}`);
-                alert('Orçamento criado com sucesso!');
-                onSave();
-                onClose();
-            }
+            const { error } = await criarOrcamento(user.id, {
+                nome_cliente: formData.nome_cliente,
+                produto_servico: formData.produto_servico,
+                detalhes: response.text,
+                valor: formData.valor,
+            });
+            if(error) throw error;
+            await registrarHistorico(user.id, null, 'criou_orcamento', `Cliente: ${formData.nome_cliente}`);
+            alert('Orçamento criado com sucesso!');
+            onSave();
+            onClose();
+            
         } catch (error: any) {
             console.error(error);
             alert("Ocorreu um erro ao gerar o orçamento.");

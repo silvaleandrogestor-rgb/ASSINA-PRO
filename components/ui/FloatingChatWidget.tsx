@@ -29,9 +29,9 @@ const FloatingChatWidget: React.FC = () => {
     };
 
     return (
-        <div className="fixed bottom-6 right-6 z-50">
+        <div className="fixed bottom-20 right-4 md:bottom-6 md:right-6 z-50">
             {isOpen ? (
-                <div className="w-80 h-[450px] bg-white rounded-xl shadow-2xl flex flex-col border border-gray-200">
+                <div className="w-[calc(100vw-32px)] h-[70vh] max-h-[500px] md:w-80 md:h-[450px] bg-white rounded-xl shadow-2xl flex flex-col border border-gray-200">
                     <header className="bg-brand-blue text-white p-4 rounded-t-xl flex justify-between items-center">
                         <h3 className="font-bold">Suporte Assina Pro</h3>
                         <button onClick={() => setIsOpen(false)} className="text-blue-200 hover:text-white">

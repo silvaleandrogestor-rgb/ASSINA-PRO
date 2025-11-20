@@ -1,3 +1,4 @@
+
 import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import Card from '../components/ui/Card';
@@ -9,7 +10,7 @@ import { useAppContext } from '../contexts/AppContext';
 import { HistoryItem } from '../types';
 import FloatingChatWidget from '../components/ui/FloatingChatWidget';
 
-const MetricCard = ({ title, value, icon, color }: {title: string, value: string, icon: React.ReactElement, color: string}) => (
+const MetricCard: React.FC<{title: string, value: string, icon: React.ReactElement, color: string}> = ({ title, value, icon, color }) => (
     <Card className="flex items-start">
         <div className={`p-3 rounded-lg mr-4`} style={{backgroundColor: color + '1A'}}>
           <div style={{ color }}>{icon}</div>
@@ -26,7 +27,16 @@ const PlanStatusCard: React.FC = () => {
     const navigate = useNavigate();
 
     if (subscription && subscription.status === 'ativo') {
-        return <MetricCard title="Status do Plano" value="Mensal Ativo" icon={<Zap />} color="#10B981" />;
+        return (
+             <Card className="flex items-start bg-green-50 border-green-200">
+                <div className="p-3 rounded-lg mr-4 bg-green-100 text-green-500"><Zap /></div>
+                <div>
+                    <p className="text-green-600 text-sm font-medium">Status do Plano</p>
+                    <p className="text-xl font-bold text-green-800">Plano Mensal Ativo</p>
+                    <p className="text-sm text-green-700 mt-1">Você tem acesso ilimitado a todos os recursos.</p>
+                </div>
+            </Card>
+        );
     }
     if (wallet?.trial_ativo) {
         return (
@@ -47,7 +57,7 @@ const PlanStatusCard: React.FC = () => {
     }
     if (wallet && wallet.creditos > 0) {
          return (
-            <Card className="flex flex-col justify-between">
+             <Card className="flex flex-col justify-between">
                  <div>
                     <div className="flex items-start">
                         <div className="p-3 rounded-lg mr-4 bg-blue-100 text-blue-500"><CreditCard /></div>
@@ -64,13 +74,13 @@ const PlanStatusCard: React.FC = () => {
     }
     
     return (
-        <Card className="flex flex-col justify-between bg-red-50 border-red-200">
+        <Card className="flex flex-col justify-between bg-red-100 border-red-300 text-red-800">
             <div>
                 <p className="text-red-600 text-sm font-medium">Status do Plano</p>
-                <p className="text-xl font-bold text-red-800">Sem Acesso</p>
+                <p className="text-xl font-bold">Sem Acesso</p>
                 <p className="text-sm text-red-700 mt-2">Seu trial acabou e você não tem créditos.</p>
             </div>
-            <Button size="sm" className="w-full mt-4 bg-red-500 hover:bg-red-600" onClick={() => navigate('/planos')}>Ver Planos</Button>
+            <Button size="sm" className="w-full mt-4 bg-red-500 hover:bg-red-600 text-white" onClick={() => navigate('/planos')}>Ver Planos</Button>
         </Card>
     );
 };
@@ -121,11 +131,11 @@ const DashboardPage: React.FC = () => {
   return (
     <div>
       <h1 className="text-3xl font-bold text-soft-black mb-2">Olá, {userName || 'Usuário'}!</h1>
-      <p className="text-gray-600 mb-6">Bem-vindo(a) de volta ao seu painel.</p>
+      <p className="text-gray-600 mb-8">Bem-vindo(a) de volta ao seu painel.</p>
 
-        <div className="mb-6">
+        <div className="mb-8">
             <h2 className="text-xl font-bold text-soft-black mb-4">Ações Rápidas</h2>
-            <div className="flex items-center gap-4">
+            <div className="flex flex-wrap items-center gap-4">
                 <Button onClick={() => navigate('/contratos')}>
                     <PlusCircle size={18} className="mr-2"/>
                     Criar Contrato
@@ -134,20 +144,24 @@ const DashboardPage: React.FC = () => {
                     <PlusCircle size={18} className="mr-2"/>
                     Gerar Orçamento
                 </Button>
+                 <Button variant="outline" onClick={() => navigate('/contratos')}>
+                    <FileSignature size={18} className="mr-2"/>
+                    Gerar Assinatura
+                </Button>
             </div>
         </div>
 
-      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6">
+      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6 mb-8">
         {metrics.map(metric => (
           <MetricCard
             key={metric.title}
-            title={metric.title}
-            value={metric.value}
-            icon={metric.icon}
-            color={metric.color}
+            {...metric}
           />
         ))}
-        <PlanStatusCard />
+      </div>
+
+      <div className="mb-8">
+          <PlanStatusCard />
       </div>
 
       <div className="mt-8">
@@ -160,7 +174,7 @@ const DashboardPage: React.FC = () => {
                             <div className="flex items-center">
                                 <CheckCircle size={16} className="text-gray-400 mr-3"/>
                                 <div>
-                                    <p className="font-medium text-soft-black">{item.acao.replace(/_/g, ' ')}</p>
+                                    <p className="font-medium text-soft-black capitalize">{item.acao.replace(/_/g, ' ')}</p>
                                     <p className="text-xs text-gray-500">{item.contrato?.titulo || item.valor}</p>
                                 </div>
                             </div>

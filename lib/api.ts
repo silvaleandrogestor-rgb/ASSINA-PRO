@@ -1,35 +1,27 @@
-
 import { supabase } from './supabase';
 import { Contract, CompanyProfile, Quote, HistoryItem, CreditWallet, Subscription, User } from '../types';
 
 /*
  * ===================================================================================
- * ❗❗❗ AÇÃO OBRIGATÓRIA: CORRIJA SEU BANCO DE DADOS ❗❗❗
+ * ❗❗❗ AÇÃO OBRIGATÓRIA: SCRIPT DE CONFIGURAÇÃO DO BANCO DE DADOS ❗❗❗
  * ===================================================================================
  *
  * Os erros "Could not find the table..." que você está vendo acontecem porque
  * as tabelas do banco de dados AINDA NÃO FORAM CRIADAS no seu projeto Supabase.
- * O código está tentando usar tabelas que não existem.
  *
  * PARA RESOLVER TODOS OS ERROS DE UMA VEZ:
  *
  * 1.  Vá para o seu projeto no site do Supabase (app.supabase.com).
  * 2.  No menu lateral esquerdo, clique em "SQL Editor" (ícone de um banco de dados com "SQL").
  * 3.  Clique no botão azul "+ New query".
- * 4.  Copie TODO o código SQL abaixo (desde -- APAGA TABELAS ANTIGAS... até o final).
- * 5.  Cole o código no editor SQL.
- * 6.  Clique no botão verde "RUN" no canto inferior direito.
- *
- * Isso irá criar todas as tabelas e permissões necessárias. A aplicação SÓ FUNCIONARÁ
- * depois que você executar este script.
+ * 4.  Copie TODO o código SQL abaixo e cole no editor SQL.
+ * 5.  Clique no botão verde "RUN" no canto inferior direito.
  *
  * ===================================================================================
  * INÍCIO DO SCRIPT SQL (Copie tudo abaixo)
  * ===================================================================================
  */
-// FIX: Commented out the SQL script to prevent TypeScript compilation errors.
-/*
--- APAGA TABELAS ANTIGAS PARA UMA INSTALAÇÃO LIMPA (CUIDADO: ISSO DELETA TODOS OS DADOS)
+-- 1. APAGA TABELAS ANTIGAS PARA UMA INSTALAÇÃO LIMPA (CUIDADO: ISSO DELETA TODOS OS DADOS)
 DROP TABLE IF EXISTS public.creditos_log;
 DROP TABLE IF EXISTS public.historico;
 DROP TABLE IF EXISTS public.orcamentos;
@@ -39,7 +31,7 @@ DROP TABLE IF EXISTS public.carteira_creditos;
 DROP TABLE IF EXISTS public.perfis_empresa;
 DROP TABLE IF EXISTS public.usuarios_perfil;
 
--- CRIA AS TABELAS NOVAS
+-- 2. CRIA AS TABELAS NOVAS
 CREATE TABLE public.usuarios_perfil (
   id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
   auth_id UUID REFERENCES auth.users(id) ON DELETE CASCADE UNIQUE,
@@ -125,7 +117,7 @@ CREATE TABLE public.orcamentos (
   criado_em TIMESTAMPTZ DEFAULT now()
 );
 
--- HABILITA RLS (ROW LEVEL SECURITY) EM TODAS AS TABELAS
+-- 3. HABILITA RLS (ROW LEVEL SECURITY) EM TODAS AS TABELAS
 ALTER TABLE public.usuarios_perfil ENABLE ROW LEVEL SECURITY;
 ALTER TABLE public.carteira_creditos ENABLE ROW LEVEL SECURITY;
 ALTER TABLE public.assinaturas ENABLE ROW LEVEL SECURITY;
@@ -135,7 +127,7 @@ ALTER TABLE public.historico ENABLE ROW LEVEL SECURITY;
 ALTER TABLE public.perfis_empresa ENABLE ROW LEVEL SECURITY;
 ALTER TABLE public.orcamentos ENABLE ROW LEVEL SECURITY;
 
--- CRIA AS POLÍTICAS DE ACESSO (PERMISSÕES)
+-- 4. CRIA AS POLÍTICAS DE ACESSO (PERMISSÕES)
 CREATE POLICY "Permitir acesso total para usuários autenticados" ON public.usuarios_perfil FOR ALL USING (auth.uid() = auth_id) WITH CHECK (auth.uid() = auth_id);
 CREATE POLICY "Permitir acesso total para usuários autenticados" ON public.carteira_creditos FOR ALL USING (auth.uid() = user_id) WITH CHECK (auth.uid() = user_id);
 CREATE POLICY "Permitir acesso total para usuários autenticados" ON public.assinaturas FOR ALL USING (auth.uid() = user_id) WITH CHECK (auth.uid() = user_id);
@@ -147,110 +139,32 @@ CREATE POLICY "Permitir inserção para usuários autenticados" ON public.histor
 CREATE POLICY "Permitir inserção anônima no histórico (para assinaturas)" ON public.historico FOR INSERT WITH CHECK (user_id IS NULL);
 CREATE POLICY "Permitir acesso total para usuários autenticados" ON public.perfis_empresa FOR ALL USING (auth.uid() = user_id) WITH CHECK (auth.uid() = user_id);
 CREATE POLICY "Permitir acesso total para usuários autenticados" ON public.orcamentos FOR ALL USING (auth.uid() = user_id) WITH CHECK (auth.uid() = user_id);
-*/
 /*
  * ===================================================================================
- * FIM DO SCRIPT SQL
+ * FIM DO SCRIPT SQL PRINCIPAL
  * ===================================================================================
- */
-
-/**
- * ===================================================================================
- * ❗❗❗ AÇÃO OBRIGATÓRIA: CRIAR EDGE FUNCTION PARA CHECKOUT PAGSEGURO ❗❗❗
- * ===================================================================================
- * O erro "Failed to send a request to the Edge Function" acontece porque a função
- * que processa o pagamento AINDA NÃO EXISTE no seu projeto Supabase.
- *
- * PARA RESOLVER:
- *
- * 1.  No seu projeto (no seu computador), se não tiver a CLI do Supabase, instale-a.
- * 2.  Execute: `supabase functions new iniciar-checkout-pagseguro`
- * 3.  Isso criará um arquivo em: `supabase/functions/iniciar-checkout-pagseguro/index.ts`
- * 4.  Abra esse arquivo e substitua TODO o conteúdo dele pelo código abaixo.
- * 5.  Adicione seu token do PagSeguro como um "Secret" no Supabase:
- *     `supabase secrets set PAGSEGURO_TOKEN=SEU_TOKEN_AQUI`
- * 6.  Faça o deploy da função: `supabase functions deploy`
  *
  * ===================================================================================
- * INÍCIO DO CÓDIGO DA EDGE FUNCTION (Copie e cole no arquivo index.ts)
+ * ❗❗❗ AÇÃO OBRIGATÓRIA (PASSO 2): CRIAR STORAGE PARA LOGOS ❗❗❗
  * ===================================================================================
- 
-import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
-import { corsHeaders } from "../_shared/cors.ts";
-
-const PAGSEGURO_TOKEN = Deno.env.get("PAGSEGURO_TOKEN");
-const PAGSEGURO_API_URL = "https://sandbox.api.pagseguro.com/checkouts"; // Mude para a URL de produção quando estiver pronto
-
-serve(async (req) => {
-  if (req.method === "OPTIONS") {
-    return new Response("ok", { headers: corsHeaders });
-  }
-
-  try {
-    const { tipo, valor, descricao, customer, userId } = await req.json();
-
-    if (!PAGSEGURO_TOKEN) {
-      throw new Error("PagSeguro token is not configured in Supabase secrets.");
-    }
-
-    const body = {
-      reference_id: `${userId}-${crypto.randomUUID()}`,
-      description: descricao,
-      amount: {
-        value: Number(valor) * 100, // PagSeguro expects value in cents
-        currency: "BRL",
-      },
-      payment_notification_urls: [
-        `https://njxcddubrgybmkzueavr.supabase.co/functions/v1/webhook-pagseguro`,
-      ],
-      customer: {
-        name: customer.name || "N/A",
-        email: customer.email,
-        tax_id: "11111111111", // Placeholder, idealmente coletar do usuário
-      },
-      // Adicionando o userId nos metadados para o webhook
-      metadata: {
-        userId: userId,
-        tipoCompra: tipo,
-      },
-    };
-
-    const response = await fetch(PAGSEGURO_API_URL, {
-      method: "POST",
-      headers: {
-        Authorization: `Bearer ${PAGSEGURO_TOKEN}`,
-        "Content-Type": "application/json",
-      },
-      body: JSON.stringify(body),
-    });
-
-    const data = await response.json();
-
-    if (!response.ok) {
-      console.error("PagSeguro API Error:", data);
-      throw new Error(data.error_messages[0]?.description || "Failed to create checkout.");
-    }
-
-    const checkoutUrl = data.links?.find((link: any) => link.rel === "PAY")?.href;
-
-    if (!checkoutUrl) {
-        throw new Error("Checkout URL not found in PagSeguro response.");
-    }
-
-    return new Response(JSON.stringify({ checkoutUrl }), {
-      headers: { ...corsHeaders, "Content-Type": "application/json" },
-      status: 200,
-    });
-  } catch (error) {
-    return new Response(JSON.stringify({ error: error.message }), {
-      headers: { ...corsHeaders, "Content-Type": "application/json" },
-      status: 500,
-    });
-  }
-});
- 
+ * A funcionalidade de upload de logo precisa de um "Bucket" no Supabase Storage.
+ *
+ * 1.  No seu projeto Supabase, vá para "Storage" no menu lateral.
+ * 2.  Clique em "+ New Bucket".
+ * 3.  Nome do bucket: `logos`
+ * 4.  Marque a opção "Public bucket".
+ * 5.  Clique em "Create Bucket".
+ *
+ * Em seguida, vá para "SQL Editor" e execute o seguinte para garantir que
+ * todos possam ler as imagens, mas apenas usuários logados possam enviar/modificar.
+ *
+-- POLÍTICAS DE ACESSO PARA O BUCKET 'logos'
+CREATE POLICY "Public Read Access" ON storage.objects FOR SELECT USING ( bucket_id = 'logos' );
+CREATE POLICY "Authenticated Insert" ON storage.objects FOR INSERT TO authenticated WITH CHECK ( bucket_id = 'logos' );
+CREATE POLICY "Authenticated Update" ON storage.objects FOR UPDATE TO authenticated USING ( bucket_id = 'logos' );
+CREATE POLICY "Authenticated Delete" ON storage.objects FOR DELETE TO authenticated USING ( bucket_id = 'logos' );
  * ===================================================================================
- * FIM DO CÓDIGO DA EDGE FUNCTION
+ * FIM DO GUIA DE STORAGE
  * ===================================================================================
  */
 
@@ -345,13 +259,36 @@ export async function getPerfilEmpresa(userId: string) {
     return { data: data as CompanyProfile | null, error: error?.code === 'PGRST116' ? null : error };
 }
 
-export async function salvarPerfilEmpresa(userId: string, profileData: Partial<CompanyProfile>) {
+export async function salvarPerfilEmpresa(userId: string, profileData: Partial<CompanyProfile> & { logoFile?: File | null }) {
+    const { logoFile, ...restOfProfile } = profileData;
+    let logo_url = restOfProfile.logo_url;
+
+    if (logoFile) {
+        // Upload new logo
+        const filePath = `public/${userId}-${Date.now()}-${logoFile.name}`;
+        const { error: uploadError } = await supabase.storage.from('logos').upload(filePath, logoFile, {
+            cacheControl: '3600',
+            upsert: true
+        });
+
+        if (uploadError) {
+            logSupabaseError('salvarPerfilEmpresa (upload logo)', uploadError);
+            return { data: null, error: uploadError };
+        }
+
+        // Get public URL of the uploaded logo
+        const { data: urlData } = supabase.storage.from('logos').getPublicUrl(filePath);
+        logo_url = urlData.publicUrl;
+    }
+    
+    // Save profile data (with new logo_url if uploaded)
     const { data, error } = await supabase
         .from('perfis_empresa')
-        .upsert({ ...profileData, user_id: userId }, { onConflict: 'user_id' })
+        .upsert({ ...restOfProfile, user_id: userId, logo_url: logo_url }, { onConflict: 'user_id' })
         .select()
         .single();
-    if (error) logSupabaseError('salvarPerfilEmpresa', error);
+        
+    if (error) logSupabaseError('salvarPerfilEmpresa (upsert)', error);
     return { data, error };
 }
 
@@ -575,4 +512,27 @@ export async function salvarAssinatura(contractId: string, signature: string) {
     const { data, error } = await supabase.from('contratos').update({ assinatura_cliente: signature, status: 'signed' }).eq('id', contractId);
     if (error) logSupabaseError('salvarAssinatura', error);
     return { data, error };
+}
+
+/**
+ * ============================================================================
+ * Notifications (from History)
+ * ============================================================================
+ */
+export async function getNotifications(userId: string) {
+    const { data, error } = await supabase
+    .from('historico')
+    .select(`
+      id,
+      acao,
+      valor,
+      data,
+      contrato:contratos(titulo)
+    `)
+    .eq('user_id', userId)
+    .order('data', { ascending: false })
+    .limit(10);
+
+  if (error) logSupabaseError('getNotifications', error);
+  return { data: data as HistoryItem[] | null, error };
 }
