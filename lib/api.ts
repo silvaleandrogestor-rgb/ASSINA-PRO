@@ -302,10 +302,6 @@ export async function usarTrial(userId: string) {
     return { data, error };
 }
 
-export async function iniciarCheckoutPagSeguro(tipo: 'mensal' | 'creditos', valor: number, descricao: string) {
-    const { data: { user } } = await supabase.auth.getUser();
-    if (!user) {
-        alert("Erro: usuário não autenticado para iniciar o checkout.");
         export async function iniciarCheckoutPagSeguro(
   tipo: 'mensal' | 'creditos',
   valor: number,
