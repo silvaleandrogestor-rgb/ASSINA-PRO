@@ -306,40 +306,55 @@ export async function iniciarCheckoutPagSeguro(tipo: 'mensal' | 'creditos', valo
     const { data: { user } } = await supabase.auth.getUser();
     if (!user) {
         alert("Erro: usuário não autenticado para iniciar o checkout.");
-        return;
-    }
-    
-    try {
-        const { data, error } = await supabase.functions.invoke('iniciar-checkout-pagseguro', {
-            body: {
-                valor,
-                descricao,
-                customer: { name: user.user_metadata?.full_name || "Cliente AssinaPro", email: user.email },
-                userId: user.id
-            }
-        });
+        export async function iniciarCheckoutPagSeguro(
+  tipo: 'mensal' | 'creditos',
+  valor: number,
+  descricao: string
+) {
+  const {
+    data: { user },
+    error: authError,
+  } = await supabase.auth.getUser();
 
-        if (error) throw error;
+  if (authError || !user) {
+    alert("Erro: usuário não autenticado para iniciar o checkout.");
+    return;
+  }
 
-        if (data.checkoutUrl) {
-            window.location.href = data.checkoutUrl;
-        } else {
-            console.error("Resposta da Edge Function sem checkoutUrl:", data);
-            alert("Não foi possível iniciar o checkout. Verifique o console da Edge Function para mais detalhes.");
-        }
-    } catch (error: any) {
-        logSupabaseError("iniciarCheckoutPagSeguro (invoke)", error);
-        alert("Falha ao se comunicar com o servidor de checkout. Verifique se a Edge Function 'iniciar-checkout-pagseguro' foi implantada (deployed) corretamente no seu projeto Supabase.");
+  try {
+    const { data, error } = await supabase.functions.invoke('iniciar-checkout-pagseguro', {
+      body: {
+        valor,
+        descricao,
+        tipo,
+        customer: {
+          name: user.user_metadata?.full_name || "Cliente AssinaPro",
+          email: user.email,
+        },
+        userId: user.id,
+      },
+    });
+
+    if (error) {
+      console.error("Erro retornado pela Edge Function:", error);
+      alert("Não foi possível iniciar o checkout. Verifique a Edge Function.");
+      return;
     }
+
+    if (!data || !data.checkoutUrl) {
+      console.error("Resposta inesperada:", data);
+      alert("Erro: a Edge Function não retornou uma checkoutUrl válida.");
+      return;
+    }
+
+    window.location.href = data.checkoutUrl;
+
+  } catch (err) {
+    console.error("Erro ao chamar iniciarCheckoutPagSeguro:", err);
+    alert("Falha ao enviar requisição ao servidor do checkout.");
+  }
 }
 
-export async function registrarHistorico(userId: string | null, contractId: string | null, action: string, value: string | null) {
-  const { data, error } = await supabase.from('historico').insert([{ user_id: userId, contrato_id: contractId, acao: action, valor: value, user_agent: navigator.userAgent }]);
-  if (error) logSupabaseError('registrarHistorico', error);
-  return { data, error };
-}
-
-async function registrarCreditoLog(userId: string, type: 'credito' | 'debito', quantity: number, description: string) {
     const { data, error } = await supabase.from('creditos_log').insert([{ user_id: userId, tipo: type, quantidade: quantity, descricao: description }]);
     if (error) logSupabaseError('registrarCreditoLog', error);
     return { data, error };
